@@ -1,0 +1,16 @@
+{
+  "name": "mop-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitorización sintética E2E de themopbookstore.com (sin servicio externo)",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
