@@ -3,5 +3,6 @@ mop-e2e/test-results/
 mop-e2e/playwright-report/
 mop-e2e/blob-report/
 mop-e2e/playwright/.cache/
+mop-e2e/healthcheck-failures.txt
 *.log
 *.tar.gz

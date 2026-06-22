@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Monitorización sintética E2E de themopbookstore.com (sin servicio externo)",
   "scripts": {
+    "healthcheck": "node scripts/healthcheck.js",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",

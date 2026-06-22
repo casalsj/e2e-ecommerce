@@ -14,8 +14,8 @@ stack, como alternativa gratuita a Checkly/servicios externos.
 | The Campamento | https://thecampamento.com | (mismo repo) |
 | Eme Studios | https://emestudios.com | (mismo repo) |
 
-- Stack del test: **Playwright** (JS, ESM).
-- Ejecución: **GitHub Actions** cron cada 15 min + alerta a **Google Chat** si falla.
+- Stack del test: **Playwright** (JS, ESM) + **healthcheck HTTP** ligero.
+- Ejecución: GitHub Actions — healthcheck cada **5 min**, E2E cada **15 min**; alerta a **Google Chat** si falla.
 - Filosofía: el test ataca la **web ya desplegada** como un usuario real.
   **NO** vive dentro del repo del cliente ni importa nada de su código.
 
@@ -35,11 +35,15 @@ URLs de checkout confirmadas en producción:
 
 ```
 e2e-ecommerce/
-├── .github/workflows/e2e.yml   # cron */15 + Google Chat en fallo
+├── .github/workflows/
+│   ├── healthcheck.yml     # cron */5 — GET home + catálogo
+│   ├── e2e.yml             # cron */15 — Playwright E2E
+│   └── webhook-test.yml    # prueba manual webhook OK/KO
 ├── CONTEXT.md                  # este archivo
 ├── scripts/setup-github.sh     # primer despliegue (gh + secret)
 └── mop-e2e/
     ├── stores/index.js         # config por tienda (rutas, selectores, regex)
+    ├── scripts/healthcheck.js  # ping HTTP sin navegador
     ├── tests/
     │   ├── checkout.spec.js    # 4 tests × 3 tiendas = 12 tests
     │   └── helpers.js          # cookies, talla, carrito, checkout
@@ -48,7 +52,18 @@ e2e-ecommerce/
     └── README.md
 ```
 
-## Tests (12 en total)
+## Monitor en dos capas
+
+| Capa | Workflow | Frecuencia | Qué comprueba | Duración |
+|------|----------|------------|---------------|----------|
+| **Healthcheck** | `healthcheck.yml` | cada 5 min | `GET /` + `GET catalogPath` → HTTP 2xx | ~10–30 s |
+| **E2E profundo** | `e2e.yml` | cada 15 min | 4 tests Playwright hasta checkout | ~2 min |
+
+Local: `npm run healthcheck` (sin instalar Playwright).
+
+El healthcheck da **uptime orientativo** (¿responde la web?). El E2E confirma **¿se puede comprar?**.
+
+## Tests E2E (12 en total)
 
 Por cada tienda (`themopbookstore`, `thecampamento`, `emestudios`):
 

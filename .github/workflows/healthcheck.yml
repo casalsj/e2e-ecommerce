@@ -1,0 +1,45 @@
+name: Healthcheck
+
+# Ping ligero cada 5 min: home + catálogo (uptime orientativo).
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: healthcheck-monitor
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: mop-e2e
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Healthcheck ligero (home + catálogo × 3 tiendas)
+        run: node scripts/healthcheck.js
+
+      - name: Avisar a Google Chat si falla
+        if: failure()
+        run: |
+          TEXT=$(node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const details = readFileSync('healthcheck-failures.txt', 'utf8').trim();
+            const run = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            console.log(JSON.stringify({
+              text: '🚨 *Healthcheck FALLÓ* (home / catálogo)\\n' + details + '\\nRun: ' + run,
+            }));
+          ")
+          curl -sf -X POST \
+            -H 'Content-Type: application/json; charset=UTF-8' \
+            --data "$TEXT" \
+            "${{ secrets.GOOGLE_CHAT_WEBHOOK }}"

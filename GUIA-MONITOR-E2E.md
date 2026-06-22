@@ -9,11 +9,19 @@ Pensado para CTO / responsable técnico.
 
 ## Resumen ejecutivo
 
-Tenemos un **monitor sintético** que simula un usuario real comprando en producción cada **15 minutos**. Si el flujo crítico se rompe, llega una alerta a un **espacio de Google Chat** del equipo.
+Tenemos **dos capas** de monitorización sobre las mismas tiendas:
+
+| Capa | Frecuencia | Qué comprueba |
+|------|------------|---------------|
+| **Healthcheck ligero** | cada 5 min | Home y catálogo responden HTTP 2xx |
+| **E2E profundo (Playwright)** | cada 15 min | Flujo completo hasta checkout de Shopify |
+
+Si cualquiera falla, llega alerta a **Google Chat**. El repo es **público** (Actions ilimitados en Linux).
 
 | Aspecto | Detalle |
 |---------|---------|
-| **Qué se comprueba** | Home → catálogo → ficha de producto → añadir al carrito → llegar al checkout de Shopify |
+| **E2E — qué se comprueba** | Home → catálogo → ficha → carrito → checkout Shopify |
+| **Healthcheck — qué se comprueba** | `GET /` y `GET catalogPath` por tienda |
 | **Qué NO se hace** | No se completa el pago ni se generan pedidos |
 | **Herramienta** | [Playwright](https://playwright.dev/) (Chromium headless) |
 | **Ejecución** | GitHub Actions (cron + manual) |
@@ -30,10 +38,13 @@ El código de los tests **no vive en el repo de cada tienda**. Es un repo indepe
 ```mermaid
 flowchart LR
   subgraph gh [GitHub Actions]
-    cron[Cron cada 15 min]
-    wf[E2E Monitor workflow]
+    hc_cron[Cron cada 5 min]
+    hc[Healthcheck HTTP]
+    e2e_cron[Cron cada 15 min]
+    wf[E2E Monitor]
     pw[Playwright Chromium]
-    cron --> wf --> pw
+    hc_cron --> hc
+    e2e_cron --> wf --> pw
   end
 
   subgraph prod [Producción]
@@ -47,12 +58,16 @@ flowchart LR
     gc[Google Chat]
   end
 
+  hc -->|home + catálogo| t1 & t2 & t3
   pw --> t1 & t2 & t3
   pw --> co
+  hc -->|solo si falla| gc
   wf -->|solo si falla| gc
 ```
 
-**Flujo en cada ejecución:**
+**Healthcheck (cada 5 min):** `node scripts/healthcheck.js` — 6 peticiones HTTP (home + catálogo × 3 tiendas). Sin navegador.
+
+**E2E (cada 15 min):**
 
 1. GitHub Actions descarga el repo y ejecuta `npm test` en `mop-e2e/`.
 2. Playwright lanza **12 tests** (4 por tienda × 3 tiendas).
@@ -66,13 +81,15 @@ flowchart LR
 ```
 e2e-ecommerce/
 ├── .github/workflows/
-│   ├── e2e.yml              # Monitor automático (cron + alerta KO)
+│   ├── healthcheck.yml      # Uptime ligero (cron */5)
+│   ├── e2e.yml              # Monitor E2E (cron */15)
 │   └── webhook-test.yml     # Prueba manual del webhook (OK/KO por tienda)
 ├── GUIA-MONITOR-E2E.md      # Este documento
 ├── CONTEXT.md               # Contexto técnico para desarrollo
 ├── scripts/setup-github.sh  # Bootstrap: repo + secret + primer run
 └── mop-e2e/
     ├── stores/index.js      # Configuración por tienda (rutas, selectores)
+    ├── scripts/healthcheck.js
     ├── tests/
     │   ├── checkout.spec.js # Tests genéricos (mismos para todas las tiendas)
     │   └── helpers.js       # Cookies, tallas, carrito, checkout

@@ -1,8 +1,9 @@
 # e2e-ecommerce (mop-e2e)
 
-Monitorización sintética E2E de tiendas Shopify headless sin servicio externo.
-Corre con Playwright desde GitHub Actions cada 15 min y avisa por **Google Chat**
-si algún camino crítico de compra se rompe.
+Monitorización de tiendas Shopify headless sin servicio externo.
+
+- **Healthcheck** (cada 5 min): `GET` home + catálogo — sin navegador.
+- **E2E Playwright** (cada 15 min): flujo hasta checkout — avisa por **Google Chat** si falla.
 
 ## Tiendas monitorizadas
 
@@ -27,8 +28,9 @@ si algún camino crítico de compra se rompe.
 
 ```bash
 npm install
-npx playwright install chromium
-npm test                              # las 3 tiendas
+npx playwright install chromium   # solo para E2E
+npm run healthcheck               # ping HTTP (6 checks, sin Playwright)
+npm test                          # las 3 tiendas (12 tests)
 npm test -- --project=emestudios      # una sola tienda
 npm run test:ui                       # modo interactivo
 ```
