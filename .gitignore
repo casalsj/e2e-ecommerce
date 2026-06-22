@@ -4,3 +4,4 @@ mop-e2e/playwright-report/
 mop-e2e/blob-report/
 mop-e2e/playwright/.cache/
 *.log
+*.tar.gz
