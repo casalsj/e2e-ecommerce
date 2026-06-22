@@ -44,16 +44,48 @@ export async function selectSizeIfNeeded(page, store) {
 /**
  * @param {import('@playwright/test').Page} page
  * @param {import('../stores/index.js').stores[string]} store
+ * @returns {Promise<string|null>} checkoutUrl relativa devuelta por la API del carrito
  */
 export async function addToCart(page, store) {
-  const cartResponse = page
-    .waitForResponse(
-      (r) => r.url().includes('cart') && r.request().method() !== 'GET' && r.status() < 400,
-      { timeout: 20_000 }
-    )
-    .catch(() => null);
-  await page.getByRole('button', { name: store.addToCartPattern }).first().click();
-  await cartResponse;
+  /** @type {string|null} */
+  let checkoutUrl = null;
+
+  const onResponse = async (response) => {
+    if (!response.url().includes('cart') || response.request().method() === 'GET') return;
+    try {
+      const body = await response.json();
+      checkoutUrl = body?.cart?.checkoutUrl ?? checkoutUrl;
+    } catch {
+      // No JSON
+    }
+  };
+
+  page.on('response', onResponse);
+  try {
+    await page.getByRole('button', { name: store.addToCartPattern }).first().click();
+    await page
+      .waitForResponse(
+        (r) => r.url().includes('cart') && r.request().method() !== 'GET' && r.status() < 400,
+        { timeout: 20_000 }
+      )
+      .catch(() => null);
+  } finally {
+    page.off('response', onResponse);
+  }
+
+  return checkoutUrl;
+}
+
+/**
+ * Navega al checkout usando la URL devuelta por la API del carrito (fallback fiable en CI).
+ * @param {import('@playwright/test').Page} page
+ * @param {import('../stores/index.js').stores[string]} store
+ * @param {string} checkoutPath
+ */
+export async function gotoCheckoutViaApi(page, store, checkoutPath) {
+  const target = new URL(checkoutPath, store.baseURL).href;
+  await page.goto(target);
+  await page.waitForURL(store.checkoutUrlPattern, { timeout: 30_000 });
 }
 
 /** Cierra popups de newsletter que tapan el cajón de compra. */

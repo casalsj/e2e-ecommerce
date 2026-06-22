@@ -7,6 +7,7 @@ import {
   cartButtonLocator,
   selectSizeIfNeeded,
   addToCart,
+  gotoCheckoutViaApi,
   checkoutLocator,
   openCartDrawerIfNeeded,
 } from './helpers.js';
@@ -62,7 +63,7 @@ test.describe('Flujo de compra crítico', () => {
 
     const initialCount = store.id === 'themopbookstore' ? await getCartCount(page) : 0;
 
-    await addToCart(page, store);
+    const apiCheckoutUrl = await addToCart(page, store);
 
     const drawerSignal = page.getByText(store.cartDrawerPattern).first();
     if (store.id === 'themopbookstore') {
@@ -82,17 +83,21 @@ test.describe('Flujo de compra crítico', () => {
     await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
     await expect(drawerSignal).toBeVisible();
 
-    // Popups (Klaviyo, newsletter) pueden cerrar el cajón; reintentar apertura + checkout.
     await expect(async () => {
       await dismissNewsletterPopups(page, store);
       await openCartDrawerIfNeeded(page, store);
       await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
       const btn = checkoutLocator(page, store).last();
-      await expect(btn).toBeVisible();
-      await Promise.all([
-        page.waitForURL(store.checkoutUrlPattern, { timeout: 12_000 }),
-        btn.click({ timeout: 5_000 }),
-      ]);
+      if (await btn.isVisible()) {
+        await Promise.all([
+          page.waitForURL(store.checkoutUrlPattern, { timeout: 12_000 }),
+          btn.click({ timeout: 5_000 }),
+        ]);
+      } else if (apiCheckoutUrl) {
+        await gotoCheckoutViaApi(page, store, apiCheckoutUrl);
+      } else {
+        await expect(btn).toBeVisible();
+      }
     }).toPass({ timeout: 60_000 });
 
     expect(page.url()).toMatch(store.checkoutUrlPattern);

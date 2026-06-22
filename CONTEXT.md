@@ -91,6 +91,7 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 - **Talla obligatoria** — seleccionar (ej. `M`) antes de "AÑADIR AL CARRITO".
 - **Cesta** — cajón con "Contenido del carrito" y botón **"PAGAR"**.
 - **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón.
+- **Fallback CI** — si el botón PAGAR no es clicable, el test usa `cart.checkoutUrl` de la API Shopify.
 
 ## Decisiones de diseño
 
