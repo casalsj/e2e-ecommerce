@@ -90,15 +90,28 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 - **Cookies** — botón "ACEPTAR".
 - **Talla obligatoria** — seleccionar (ej. `M`) antes de "AÑADIR AL CARRITO".
 - **Cesta** — cajón con "Contenido del carrito" y botón **"PAGAR"**.
-- **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón.
-- **Fallback CI** — si el botón PAGAR no es clicable, el test usa `cart.checkoutUrl` de la API Shopify.
+- **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón en CI.
+- **Checkout en CI** — `preferApiCheckout: true`: tras verificar el carrito, navega a
+  `cart.checkoutUrl` (`/api/shopify/cart/.../checkout`) en lugar de pulsar PAGAR.
+  Evita popups y es igual de válido (mismo handoff a `checkout.emestudios.com`).
+
+### thecampamento.com (checkout CI)
+
+- Igual que emestudios: `preferApiCheckout: true` para evitar flakiness del popup Klaviyo
+  y del botón bag en runners de GitHub Actions.
 
 ## Decisiones de diseño
 
 - **Config por tienda** en `stores/index.js`; tests genéricos leen `testInfo.project.name`.
+- **`preferApiCheckout`** — en tiendas con popup agresivo (emestudios, thecampamento) el
+  camino crítico usa la URL de la API del carrito; themopbookstore sigue el flujo UI
+  (enlace "Continuar con el pago").
+- **`addToCart`** — espera la respuesta `PUT /cart/lines` y parsea `checkoutUrl` de forma
+  síncrona (antes había race condition con el listener async que dejaba `null` en CI).
 - **Selectores por rol/texto**, no CSS frágil ni `data-testid` (no expuestos).
-- **Timeouts altos** (test 45s, navegación 30s): SSR + cold start Fly.io.
-- **`retries: 1` solo en CI** — reduce falsos positivos de red.
+- **Timeouts altos** (test 60s en CI, 45s local; navegación 30s): SSR + cold start Fly.io.
+- **`retries: 2` en CI** — reduce falsos positivos de red.
+- **`workers: 1` y `fullyParallel: false` en CI** — evita saturar las 3 tiendas a la vez.
 - **WebKit desactivado** — activar si hay incidencias Safari (histórico en MOP).
 
 ## CI / alertas
@@ -124,6 +137,34 @@ npm run test:ui             # depurar selectores
 2. Mapear en producción con `npm run test:ui` (no inventar selectores).
 3. Confirmar URL de checkout con un flujo manual.
 4. Actualizar este CONTEXT.md.
+
+## Estado del proyecto (jun 2026)
+
+| Métrica | Valor |
+|---------|-------|
+| Tiendas | 3 (themopbookstore, thecampamento, emestudios) |
+| Tests totales | 12 (4 por tienda) |
+| Navegador | Chromium (WebKit pendiente) |
+| Frecuencia CI | Cada 15 min (`cron`) + manual (`workflow_dispatch`) |
+| Alertas | Google Chat vía secret `GOOGLE_CHAT_WEBHOOK` |
+| Repo | https://github.com/casalsj/e2e-ecommerce |
+
+### Qué valida el camino crítico (sin pago)
+
+1. Navegar a ficha de producto fija (`productPath` en config).
+2. Aceptar cookies y seleccionar talla si aplica.
+3. Añadir al carrito y comprobar que el cajón refleja el producto.
+4. Llegar a `checkout.{dominio}.com/checkouts/...` y **parar** (Shopify checkout).
+
+### API del carrito (stack headless compartido)
+
+Al añadir producto, el frontend llama a:
+
+- `POST /api/shopify/cart?...` (crear carrito)
+- `PUT /api/shopify/cart/lines?...` (añadir línea)
+
+La respuesta incluye `cart.checkoutUrl` (ruta relativa). Navegar ahí redirige al
+checkout de Shopify — es el mecanismo que usan emestudios y thecampamento en CI.
 
 ## Tareas pendientes / ideas
 

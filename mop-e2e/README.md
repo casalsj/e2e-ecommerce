@@ -20,6 +20,8 @@ si algún camino crítico de compra se rompe.
 - El catálogo lista productos
 - La ficha de producto muestra precio y botón de añadir (con talla si aplica)
 - **Camino crítico**: producto → carrito → handoff al checkout (`checkout.{dominio}.com`)
+- En **emestudios** y **thecampamento** el checkout en CI usa la API del carrito
+  (`preferApiCheckout`) para evitar popups; **themopbookstore** pulsa el enlace UI.
 
 ## Local
 

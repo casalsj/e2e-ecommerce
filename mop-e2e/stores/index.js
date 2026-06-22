@@ -42,6 +42,7 @@ export const stores = {
     cartInDrawerPattern: /falling star sweatshirt/i,
     checkoutUrlPattern: /checkout\.thecampamento\.com|shopify\.com|\/checkouts?\//i,
     checkout: { type: 'button', pattern: /^checkout$/i },
+    preferApiCheckout: true,
     size: '7/8',
   },
 
@@ -63,6 +64,7 @@ export const stores = {
     cartInDrawerPattern: /roots shadow oversized tee/i,
     checkoutUrlPattern: /checkout\.emestudios\.com|shopify\.com|\/checkouts?\//i,
     checkout: { type: 'button', pattern: /^pagar$/i },
+    preferApiCheckout: true,
     size: ['M', 'L', 'S'],
   },
 };

@@ -7,8 +7,7 @@ import {
   cartButtonLocator,
   selectSizeIfNeeded,
   addToCart,
-  gotoCheckoutViaApi,
-  checkoutLocator,
+  goToCheckout,
   openCartDrawerIfNeeded,
 } from './helpers.js';
 
@@ -83,22 +82,7 @@ test.describe('Flujo de compra crítico', () => {
     await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
     await expect(drawerSignal).toBeVisible();
 
-    await expect(async () => {
-      await dismissNewsletterPopups(page, store);
-      await openCartDrawerIfNeeded(page, store);
-      await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
-      const btn = checkoutLocator(page, store).last();
-      if (await btn.isVisible()) {
-        await Promise.all([
-          page.waitForURL(store.checkoutUrlPattern, { timeout: 12_000 }),
-          btn.click({ timeout: 5_000 }),
-        ]);
-      } else if (apiCheckoutUrl) {
-        await gotoCheckoutViaApi(page, store, apiCheckoutUrl);
-      } else {
-        await expect(btn).toBeVisible();
-      }
-    }).toPass({ timeout: 60_000 });
+    await goToCheckout(page, store, apiCheckoutUrl);
 
     expect(page.url()).toMatch(store.checkoutUrlPattern);
   });

@@ -1,3 +1,5 @@
+import { expect } from '@playwright/test';
+
 /** @param {import('@playwright/test').Page} page */
 export async function dismissCookieBanner(page, pattern) {
   const acceptButton = page.getByRole('button', { name: pattern }).first();
@@ -41,39 +43,50 @@ export async function selectSizeIfNeeded(page, store) {
   }
 }
 
+/** Respuesta de la API headless al mutar el carrito (añadir línea). */
+function isCartMutationResponse(response) {
+  if (response.request().method() === 'GET' || response.status() >= 400) return false;
+  const url = response.url();
+  return url.includes('/cart/lines') || (url.includes('/api/shopify/cart') && url.includes('cart'));
+}
+
+/**
+ * @param {import('@playwright/test').Response} response
+ * @returns {Promise<string|null>}
+ */
+async function checkoutUrlFromCartResponse(response) {
+  try {
+    const body = await response.json();
+    return body?.cart?.checkoutUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * @param {import('@playwright/test').Page} page
  * @param {import('../stores/index.js').stores[string]} store
  * @returns {Promise<string|null>} checkoutUrl relativa devuelta por la API del carrito
  */
 export async function addToCart(page, store) {
-  /** @type {string|null} */
-  let checkoutUrl = null;
+  const addButton = page.getByRole('button', { name: store.addToCartPattern }).first();
 
-  const onResponse = async (response) => {
-    if (!response.url().includes('cart') || response.request().method() === 'GET') return;
-    try {
-      const body = await response.json();
-      checkoutUrl = body?.cart?.checkoutUrl ?? checkoutUrl;
-    } catch {
-      // No JSON
-    }
-  };
+  const linesResponse = page
+    .waitForResponse((r) => isCartMutationResponse(r) && r.url().includes('/lines'), {
+      timeout: 20_000,
+    })
+    .catch(() => null);
 
-  page.on('response', onResponse);
-  try {
-    await page.getByRole('button', { name: store.addToCartPattern }).first().click();
-    await page
-      .waitForResponse(
-        (r) => r.url().includes('cart') && r.request().method() !== 'GET' && r.status() < 400,
-        { timeout: 20_000 }
-      )
-      .catch(() => null);
-  } finally {
-    page.off('response', onResponse);
-  }
+  const cartResponse = page
+    .waitForResponse((r) => isCartMutationResponse(r), { timeout: 20_000 })
+    .catch(() => null);
 
-  return checkoutUrl;
+  await addButton.click();
+
+  const response = (await linesResponse) ?? (await cartResponse);
+  if (!response) return null;
+
+  return checkoutUrlFromCartResponse(response);
 }
 
 /**
@@ -91,13 +104,50 @@ export async function gotoCheckoutViaApi(page, store, checkoutPath) {
 /** Cierra popups de newsletter que tapan el cajón de compra. */
 export async function dismissNewsletterPopups(page, store) {
   if (store.id !== 'emestudios') return;
-  for (const pattern of [/no,?\s*no quiero recibir descuentos/i, /^cerrar$/i]) {
+  for (const pattern of [/no,?\s*no quiero recibir descuentos/i, /^cerrar$/i, /^close$/i]) {
     try {
-      await page.getByRole('button', { name: pattern }).click({ timeout: 1_000 });
+      await page.getByRole('button', { name: pattern }).click({ timeout: 1_500 });
     } catch {
       // Sin popup
     }
   }
+  try {
+    await page.keyboard.press('Escape');
+  } catch {
+    // Sin foco
+  }
+}
+
+/**
+ * Llega al checkout: API (fiable en CI) o clic en el botón/enlace del cajón.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('../stores/index.js').stores[string]} store
+ * @param {string|null} apiCheckoutUrl
+ */
+export async function goToCheckout(page, store, apiCheckoutUrl) {
+  if (store.preferApiCheckout && apiCheckoutUrl) {
+    await gotoCheckoutViaApi(page, store, apiCheckoutUrl);
+    return;
+  }
+
+  await dismissNewsletterPopups(page, store);
+  await openCartDrawerIfNeeded(page, store);
+
+  const btn = checkoutLocator(page, store).last();
+  if (await btn.isVisible()) {
+    await Promise.all([
+      page.waitForURL(store.checkoutUrlPattern, { timeout: 15_000 }),
+      btn.click({ timeout: 5_000 }),
+    ]);
+    return;
+  }
+
+  if (apiCheckoutUrl) {
+    await gotoCheckoutViaApi(page, store, apiCheckoutUrl);
+    return;
+  }
+
+  await expect(btn).toBeVisible();
 }
 
 /**
