@@ -63,7 +63,7 @@ export const stores = {
     cartInDrawerPattern: /roots shadow oversized tee/i,
     checkoutUrlPattern: /checkout\.emestudios\.com|shopify\.com|\/checkouts?\//i,
     checkout: { type: 'button', pattern: /^pagar$/i },
-    size: 'M',
+    size: ['M', 'L', 'S'],
   },
 };
 

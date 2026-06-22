@@ -8,15 +8,6 @@ export async function dismissCookieBanner(page, pattern) {
   }
 }
 
-/** Cierra popups modales (newsletter Klaviyo, etc.) que bloquean clics. */
-export async function dismissBlockingPopups(page) {
-  try {
-    await page.keyboard.press('Escape');
-  } catch {
-    // ignore
-  }
-}
-
 /** Localiza el botón de cesta en la cabecera (themopbookstore). */
 export function cartButtonLocator(page) {
   return page
@@ -37,7 +28,44 @@ export async function getCartCount(page) {
  */
 export async function selectSizeIfNeeded(page, store) {
   if (!store.size) return;
-  await page.getByRole('button', { name: store.size, exact: true }).first().click();
+  const sizes = Array.isArray(store.size) ? store.size : [store.size];
+  for (const size of sizes) {
+    const btn = page
+      .getByRole('button', { name: size, exact: true })
+      .and(page.locator(':enabled'))
+      .first();
+    if (await btn.count()) {
+      await btn.click();
+      return;
+    }
+  }
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {import('../stores/index.js').stores[string]} store
+ */
+export async function addToCart(page, store) {
+  const cartResponse = page
+    .waitForResponse(
+      (r) => r.url().includes('cart') && r.request().method() !== 'GET' && r.status() < 400,
+      { timeout: 20_000 }
+    )
+    .catch(() => null);
+  await page.getByRole('button', { name: store.addToCartPattern }).first().click();
+  await cartResponse;
+}
+
+/** Cierra popups de newsletter que tapan el cajón de compra. */
+export async function dismissNewsletterPopups(page, store) {
+  if (store.id !== 'emestudios') return;
+  for (const pattern of [/no,?\s*no quiero recibir descuentos/i, /^cerrar$/i]) {
+    try {
+      await page.getByRole('button', { name: pattern }).click({ timeout: 1_000 });
+    } catch {
+      // Sin popup
+    }
+  }
 }
 
 /**
@@ -60,8 +88,16 @@ export async function openCartDrawerIfNeeded(page, store) {
   if (store.id === 'thecampamento') {
     const checkoutVisible = await page.getByRole('button', { name: /^checkout$/i }).isVisible();
     if (!checkoutVisible) {
-      await page.getByRole('button', { name: /bag/i }).click();
-      await page.getByRole('button', { name: /^checkout$/i }).waitFor({ state: 'visible', timeout: 10_000 });
+      const bagBtn = page
+        .locator('button')
+        .filter({ has: page.locator('img[alt="bag"], img[alt="Bag"]') })
+        .first();
+      if (await bagBtn.count()) {
+        await bagBtn.click();
+      } else {
+        await page.getByRole('button', { name: /bag/i }).first().click();
+      }
+      await page.getByRole('button', { name: /^checkout$/i }).waitFor({ state: 'visible', timeout: 15_000 });
     }
     return;
   }

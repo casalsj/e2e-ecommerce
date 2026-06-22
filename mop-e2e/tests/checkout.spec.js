@@ -2,10 +2,11 @@ import { test, expect } from '@playwright/test';
 import { getStore } from '../stores/index.js';
 import {
   dismissCookieBanner,
-  dismissBlockingPopups,
+  dismissNewsletterPopups,
   getCartCount,
   cartButtonLocator,
   selectSizeIfNeeded,
+  addToCart,
   checkoutLocator,
   openCartDrawerIfNeeded,
 } from './helpers.js';
@@ -61,7 +62,7 @@ test.describe('Flujo de compra crítico', () => {
 
     const initialCount = store.id === 'themopbookstore' ? await getCartCount(page) : 0;
 
-    await page.getByRole('button', { name: store.addToCartPattern }).first().click();
+    await addToCart(page, store);
 
     const drawerSignal = page.getByText(store.cartDrawerPattern).first();
     if (store.id === 'themopbookstore') {
@@ -75,30 +76,14 @@ test.describe('Flujo de compra crítico', () => {
       await expect(drawerSignal).toBeVisible({ timeout: 15_000 });
     }
 
-    if (store.id === 'emestudios') {
-      try {
-        await page.getByRole('button', { name: /no,?\s*no quiero recibir descuentos/i }).click({ timeout: 2_000 });
-      } catch {
-        // Sin popup de suscripción
-      }
-    }
-
+    await dismissNewsletterPopups(page, store);
     await openCartDrawerIfNeeded(page, store);
 
     await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
     await expect(drawerSignal).toBeVisible();
 
-    // Popups (Klaviyo, newsletter) pueden cerrar el cajón; reintentar apertura + checkout.
     await expect(async () => {
-      if (store.id === 'emestudios') {
-        try {
-          await page
-            .getByRole('button', { name: /no,?\s*no quiero recibir descuentos/i })
-            .click({ timeout: 1_000 });
-        } catch {
-          // Sin popup
-        }
-      }
+      await dismissNewsletterPopups(page, store);
       await openCartDrawerIfNeeded(page, store);
       const btn = checkoutLocator(page, store).last();
       await expect(btn).toBeVisible();
