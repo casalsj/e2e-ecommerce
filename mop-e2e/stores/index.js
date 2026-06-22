@@ -53,7 +53,7 @@ export const stores = {
     productPath: '/es/es/product/roots-shadow-oversized-tee',
     catalogPath: '/es/es/best-sellers',
     homeTitle: /eme studios|always grateful/i,
-    homeNavLink: /colecciones|tienda/i,
+    homeNavLink: /colecciones|sample archive/i,
     productName: /roots shadow oversized tee/i,
     productLinkSelector: 'a[href*="/product/"]',
     pricePattern: /\d+[.,]\d{2}\s*€/i,

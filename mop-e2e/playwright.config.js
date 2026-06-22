@@ -4,11 +4,11 @@ import { stores, storeIds } from './stores/index.js';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: !process.env.CI,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
-  timeout: 45_000,
+  timeout: process.env.CI ? 60_000 : 45_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {

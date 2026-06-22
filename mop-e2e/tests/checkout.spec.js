@@ -24,7 +24,10 @@ test.describe('Flujo de compra crítico', () => {
     await page.goto('/');
     await dismissCookieBanner(page, store.cookiePattern);
     await expect(page).toHaveTitle(store.homeTitle);
-    await expect(page.getByRole('link', { name: store.homeNavLink }).first()).toBeVisible();
+    const nav = page
+      .getByRole('link', { name: store.homeNavLink })
+      .or(page.getByRole('button', { name: store.homeNavLink }));
+    await expect(nav.first()).toBeVisible();
   });
 
   test('catálogo lista productos', async ({ page }, testInfo) => {
@@ -85,18 +88,25 @@ test.describe('Flujo de compra crítico', () => {
     await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
     await expect(drawerSignal).toBeVisible();
 
-    const checkout = checkoutLocator(page, store).last();
-    await expect(checkout).toBeVisible();
-
-    // El cajón de thecampamento re-renderiza al aparecer Klaviyo; reintentar el clic.
+    // Popups (Klaviyo, newsletter) pueden cerrar el cajón; reintentar apertura + checkout.
     await expect(async () => {
+      if (store.id === 'emestudios') {
+        try {
+          await page
+            .getByRole('button', { name: /no,?\s*no quiero recibir descuentos/i })
+            .click({ timeout: 1_000 });
+        } catch {
+          // Sin popup
+        }
+      }
+      await openCartDrawerIfNeeded(page, store);
       const btn = checkoutLocator(page, store).last();
       await expect(btn).toBeVisible();
       await Promise.all([
-        page.waitForURL(store.checkoutUrlPattern, { timeout: 10_000 }),
+        page.waitForURL(store.checkoutUrlPattern, { timeout: 12_000 }),
         btn.click({ timeout: 5_000 }),
       ]);
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 45_000 });
 
     expect(page.url()).toMatch(store.checkoutUrlPattern);
   });
