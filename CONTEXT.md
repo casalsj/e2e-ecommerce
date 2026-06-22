@@ -89,7 +89,7 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 - **Producto** `/es/es/product/roots-shadow-oversized-tee` — precio `NN,NN €`.
 - **Cookies** — botón "ACEPTAR".
 - **Talla obligatoria** — seleccionar (ej. `M`) antes de "AÑADIR AL CARRITO".
-- **Cesta** — cajón con "Total" (no "Subtotal") y botón **"PAGAR"**.
+- **Cesta** — cajón con "Contenido del carrito" y botón **"PAGAR"**.
 - **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón.
 
 ## Decisiones de diseño

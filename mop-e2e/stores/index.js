@@ -59,7 +59,7 @@ export const stores = {
     pricePattern: /\d+[.,]\d{2}\s*€/i,
     cookiePattern: /^aceptar$/i,
     addToCartPattern: /añadir al carrito/i,
-    cartDrawerPattern: /^total$/i,
+    cartDrawerPattern: /contenido del carrito/i,
     cartInDrawerPattern: /roots shadow oversized tee/i,
     checkoutUrlPattern: /checkout\.emestudios\.com|shopify\.com|\/checkouts?\//i,
     checkout: { type: 'button', pattern: /^pagar$/i },

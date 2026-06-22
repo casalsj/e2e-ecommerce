@@ -82,16 +82,18 @@ test.describe('Flujo de compra crítico', () => {
     await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
     await expect(drawerSignal).toBeVisible();
 
+    // Popups (Klaviyo, newsletter) pueden cerrar el cajón; reintentar apertura + checkout.
     await expect(async () => {
       await dismissNewsletterPopups(page, store);
       await openCartDrawerIfNeeded(page, store);
+      await expect(page.getByText(store.cartInDrawerPattern).first()).toBeVisible();
       const btn = checkoutLocator(page, store).last();
       await expect(btn).toBeVisible();
       await Promise.all([
         page.waitForURL(store.checkoutUrlPattern, { timeout: 12_000 }),
         btn.click({ timeout: 5_000 }),
       ]);
-    }).toPass({ timeout: 45_000 });
+    }).toPass({ timeout: 60_000 });
 
     expect(page.url()).toMatch(store.checkoutUrlPattern);
   });
