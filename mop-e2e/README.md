@@ -1,57 +1,64 @@
-# mop-e2e
+# e2e-ecommerce (mop-e2e)
 
-Monitorización sintética E2E de **themopbookstore.com** sin servicio externo
-(alternativa gratuita a Checkly). Corre con Playwright desde GitHub Actions en
-cron y avisa por Google Chat si el camino crítico de compra se rompe.
+Monitorización sintética E2E de tiendas Shopify headless sin servicio externo.
+Corre con Playwright desde GitHub Actions cada 15 min y avisa por **Google Chat**
+si algún camino crítico de compra se rompe.
 
-No toca el código del cliente: ataca la web ya desplegada como un usuario real.
+## Tiendas monitorizadas
 
-## Qué verifica
+| Proyecto Playwright | Dominio | Tests |
+|---------------------|---------|-------|
+| `themopbookstore` | themopbookstore.com | 4 |
+| `thecampamento` | thecampamento.com | 4 |
+| `emestudios` | emestudios.com | 4 |
+
+**Total: 12 tests.** Todos verifican el flujo hasta el checkout de Shopify (sin pago).
+
+## Qué verifica cada tienda
 
 - Home carga y la navegación está presente
 - El catálogo lista productos
-- La ficha de producto muestra precio y botón de añadir
-- **Camino crítico**: producto → añadir al carrito → abrir cesta → "Continuar
-  con el pago" → **redirección al checkout de Shopify** (`checkout.themopbookstore.com`)
-
-Se detiene en el handoff a Shopify. No completa el pago ni genera pedidos.
+- La ficha de producto muestra precio y botón de añadir (con talla si aplica)
+- **Camino crítico**: producto → carrito → handoff al checkout (`checkout.{dominio}.com`)
 
 ## Local
 
 ```bash
 npm install
 npx playwright install chromium
-npm test            # o: npm run test:ui  (modo interactivo)
+npm test                              # las 3 tiendas
+npm test -- --project=emestudios      # una sola tienda
+npm run test:ui                       # modo interactivo
 ```
+
+## Configuración por tienda
+
+Toda la configuración (rutas, selectores, regex de checkout) está en
+[`stores/index.js`](stores/index.js). Los tests en [`tests/checkout.spec.js`](tests/checkout.spec.js)
+son genéricos y leen el proyecto activo de Playwright.
 
 ## CI (GitHub Actions)
 
-El workflow está en la raíz del repo: [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml).
-Corre cada 15 min y se puede lanzar a mano desde la pestaña Actions.
+Workflow en la raíz: [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml).
 
 ### Alertas en Google Chat
 
-1. En el espacio de Google Chat: nombre del espacio → **Apps e integraciones** → **Webhooks**.
-2. Crear un webhook (ej. "E2E Monitor").
-3. Copiar la URL del webhook.
-4. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**
-   - Nombre: `GOOGLE_CHAT_WEBHOOK`
-   - Valor: la URL completa (`https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=...`)
+1. Espacio de Google Chat → **Apps e integraciones** → **Webhooks**.
+2. Crear webhook (ej. "E2E Monitor").
+3. Secret en GitHub: `GOOGLE_CHAT_WEBHOOK` con la URL completa del webhook.
 
-No guardes la URL del webhook en el código ni en el repo.
-
-Para probar el webhook manualmente:
+Prueba manual:
 
 ```bash
 curl -sf -X POST \
   -H 'Content-Type: application/json; charset=UTF-8' \
-  --data '{"text":"✅ Prueba E2E Monitor — themopbookstore.com"}' \
+  --data '{"text":"✅ Prueba E2E Monitor — multi-tienda"}' \
   "$GOOGLE_CHAT_WEBHOOK"
 ```
 
 ## Ajustes habituales
 
-- **Frecuencia**: edita el `cron` en el workflow. `*/15 * * * *` = cada 15 min.
-- **Safari/WebKit**: descomenta el proyecto `webkit` en `playwright.config.js`.
-- **Otra tienda**: cambia `BASE_URL` y los selectores en `tests/checkout.spec.js`.
-- **Producto de prueba**: edita `PRODUCT_PATH` en `tests/checkout.spec.js`.
+- **Producto de prueba**: editar `productPath` en `stores/index.js`.
+- **Frecuencia CI**: `cron` en el workflow (`*/15 * * * *` = cada 15 min).
+- **Safari/WebKit**: descomentar proyecto `webkit` en `playwright.config.js`.
+- **Nueva tienda**: nueva entrada en `stores/index.js` + documentar en `CONTEXT.md`.

@@ -32,16 +32,14 @@ jobs:
       - name: Instalar navegador
         run: npx playwright install --with-deps chromium
 
-      - name: Ejecutar tests E2E
-        env:
-          BASE_URL: https://themopbookstore.com
+      - name: Ejecutar tests E2E (3 tiendas)
         run: npm test
 
       - name: Subir reporte si falla
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}
           path: mop-e2e/playwright-report/
           retention-days: 7
 
@@ -50,5 +48,5 @@ jobs:
         run: |
           curl -sf -X POST \
             -H 'Content-Type: application/json; charset=UTF-8' \
-            --data "{\"text\":\"🚨 *E2E FALLÓ* en themopbookstore.com\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            --data "{\"text\":\"🚨 *E2E FALLÓ* en monitor multi-tienda (themopbookstore / thecampamento / emestudios)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
             "${{ secrets.GOOGLE_CHAT_WEBHOOK }}"

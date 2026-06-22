@@ -1,15 +1,21 @@
-# CONTEXT.md — mop-e2e
+# CONTEXT.md — e2e-ecommerce
 
 Contexto para continuar el proyecto en Cursor (o para un agente de IA).
 Léeme entero antes de tocar nada.
 
 ## Qué es esto
 
-Monitorización sintética end-to-end de **themopbookstore.com** (tienda Shopify
-headless), construida como alternativa gratuita a Checkly/servicios externos.
+Monitorización sintética end-to-end de **3 tiendas Shopify headless** del mismo
+stack, como alternativa gratuita a Checkly/servicios externos.
+
+| Tienda | URL | Repo CI |
+|--------|-----|---------|
+| MOP Bookstore | https://themopbookstore.com | [casalsj/e2e-ecommerce](https://github.com/casalsj/e2e-ecommerce) |
+| The Campamento | https://thecampamento.com | (mismo repo) |
+| Eme Studios | https://emestudios.com | (mismo repo) |
 
 - Stack del test: **Playwright** (JS, ESM).
-- Ejecución: **GitHub Actions** en cron cada 15 min + alerta a Slack/n8n si falla.
+- Ejecución: **GitHub Actions** cron cada 15 min + alerta a **Google Chat** si falla.
 - Filosofía: el test ataca la **web ya desplegada** como un usuario real.
   **NO** vive dentro del repo del cliente ni importa nada de su código.
 
@@ -17,94 +23,115 @@ headless), construida como alternativa gratuita a Checkly/servicios externos.
 
 El test cubre el camino crítico de compra **hasta el handoff al checkout de
 Shopify y se detiene ahí**. El checkout es responsabilidad de Shopify, no del
-frontend. **Nunca se completa un pago ni se genera un pedido.** Si en el futuro
-se quiere testear más allá, hay que usar la pasarela de pruebas (Bogus Gateway)
-de Shopify, no la real.
+frontend. **Nunca se completa un pago ni se genera un pedido.**
 
-## Flujo real de la tienda (mapeado navegando, no inventado)
+URLs de checkout confirmadas en producción:
 
-1. **Home** → `https://themopbookstore.com`
-   - `<title>` contiene "MOP".
-   - Nav superior: BUSCAR / PERFIL / CESTA (N) / MENÚ.
-   - Nav secundaria: EXPOSICIONES / BOOKSTORE / MERCHANDISING.
-2. **Catálogo** → `/bookstore`
-   - Colecciones con URL tipo `/bookstore/bookstore-annie-leibovitz`,
-     `/bookstore/bookstore-david-bailey`, etc.
-3. **Ficha de producto** → `/products/{handle}`
-   - Ej: `/products/annie-leibovitz-in-wonderland`.
-   - Precio renderizado como texto `"60.00 EUR"` (patrón `\d+[.,]\d{2}\s*EUR`).
-   - Botón de añadir: `<button type="submit">` con texto **"Añadir al carrito"**.
-     (No hay `data-testid`; se selecciona por rol + texto.)
-4. **Cesta** → botón con `aria-label="Cesta (N)"`. Abre un cajón lateral.
-   - El cajón muestra "Subtotal" y las líneas de producto.
-   - **Ojo:** la cesta puede arrancar con productos ya dentro (vista en pruebas
-     con 1-2 items). El contador es **relativo**: el test lee el incremento, no
-     asume que empieza en 0.
-5. **Inicio de checkout** → botón **"Continuar con el pago"**.
-   - Al pulsarlo redirige al checkout de **Shopify** (`*.shopify.com` o ruta
-     `/checkouts/`). **Aquí termina el test.**
+- `https://checkout.themopbookstore.com/checkouts/...`
+- `https://checkout.thecampamento.com/checkouts/...`
+- `https://checkout.emestudios.com/checkouts/...`
 
 ## Estructura del repo
 
 ```
-mop-e2e/
-├── tests/checkout.spec.js     # 4 tests (ver abajo)
-├── playwright.config.js        # baseURL via BASE_URL, timeouts holgados (SSR+Fly cold start)
-├── .github/workflows/e2e.yml   # cron */15 + alerta Slack en fallo
-├── package.json                # ESM, scripts test / test:ui / report
-├── README.md                   # setup de usuario
+e2e-ecommerce/
+├── .github/workflows/e2e.yml   # cron */15 + Google Chat en fallo
 ├── CONTEXT.md                  # este archivo
-└── .gitignore
+├── scripts/setup-github.sh     # primer despliegue (gh + secret)
+└── mop-e2e/
+    ├── stores/index.js         # config por tienda (rutas, selectores, regex)
+    ├── tests/
+    │   ├── checkout.spec.js    # 4 tests × 3 tiendas = 12 tests
+    │   └── helpers.js          # cookies, talla, carrito, checkout
+    ├── playwright.config.js    # 1 proyecto Playwright por tienda
+    ├── package.json
+    └── README.md
 ```
 
-Tests en `tests/checkout.spec.js`:
+## Tests (12 en total)
+
+Por cada tienda (`themopbookstore`, `thecampamento`, `emestudios`):
+
 1. `home carga y muestra navegación`
-2. `catálogo bookstore lista productos`
+2. `catálogo lista productos`
 3. `ficha de producto: precio y botón de añadir visibles`
 4. `camino crítico: producto → carrito → inicio de checkout`
 
-## Decisiones de diseño ya tomadas (no rehacer sin motivo)
+Ejecutar solo una tienda: `npm test -- --project=emestudios`
 
-- **Selectores por rol/texto**, no por CSS/píxeles. La tienda no expone
-  `data-testid`. Si en algún momento el cliente añade `data-testid`, migrar a
-  ellos da más robustez (no se rompen al cambiar copy o diseño).
-- **Timeouts altos** (test 45s, navegación 30s): SSR + posible cold start de
-  Fly.io. No bajarlos sin medir.
-- **`retries: 1` solo en CI**: un fallo puntual suele ser flake de red en
-  monitorización; un segundo intento reduce falsos positivos sin ocultar caídas
-  reales (si falla 2 veces, salta la alerta).
-- **WebKit comentado** en la config. Conviene activarlo (la tienda ha tenido
-  incidencias específicas de Safari en el pasado).
+## Flujos mapeados en producción
+
+### themopbookstore.com
+
+- **Home** `/` — título contiene "MOP"; nav con BOOKSTORE.
+- **Catálogo** `/bookstore/bookstore-annie-leibovitz` — enlaces `/products/...`.
+- **Producto** `/products/annie-leibovitz-in-wonderland` — precio `NN.NN EUR`.
+- **Cookies** — banner "Aceptar todas las cookies" / "Sólo las esenciales".
+- **Cesta** — botón `Cesta (N)`; cajón con "Subtotal".
+- **Checkout** — enlace **"Continuar con el pago"** (es `<a>`, no `<button>`).
+
+### thecampamento.com
+
+- **Locale** — `/es/en/...` (inglés en España). `locale: en-GB` en Playwright.
+- **Home** `/es/en` — título contiene "Campamento".
+- **Catálogo** `/es/en/kid` — enlaces `/es/en/product/...`.
+- **Producto** `/es/en/product/falling-star-sweatshirt` — precio `€NN.NN`.
+- **Cookies** — "ACCEPT ALL" / "REJECT OPTIONAL".
+- **Talla obligatoria** — seleccionar talla (ej. `7/8`) antes de "ADD TO CART".
+- **Cesta** — botón `bag N`; cajón con "TOTAL" y botón **"CHECKOUT"** (no enlace).
+- **Popup Klaviyo** — puede cerrar el cajón; el test reabre con el botón `bag`.
+
+### emestudios.com
+
+- **Locale** — `/es/es/...`. `locale: es-ES` en Playwright.
+- **Home** `/es/es/` — título "Eme Studios" / "Always Grateful".
+- **Catálogo** `/es/es/best-sellers` — enlaces `/es/es/product/...`.
+- **Producto** `/es/es/product/roots-shadow-oversized-tee` — precio `NN,NN €`.
+- **Cookies** — botón "ACEPTAR".
+- **Talla obligatoria** — seleccionar (ej. `M`) antes de "AÑADIR AL CARRITO".
+- **Cesta** — cajón con "Total" (no "Subtotal") y botón **"PAGAR"**.
+- **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón.
+
+## Decisiones de diseño
+
+- **Config por tienda** en `stores/index.js`; tests genéricos leen `testInfo.project.name`.
+- **Selectores por rol/texto**, no CSS frágil ni `data-testid` (no expuestos).
+- **Timeouts altos** (test 45s, navegación 30s): SSR + cold start Fly.io.
+- **`retries: 1` solo en CI** — reduce falsos positivos de red.
+- **WebKit desactivado** — activar si hay incidencias Safari (histórico en MOP).
+
+## CI / alertas
+
+- Workflow: [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml)
+- Secret: `GOOGLE_CHAT_WEBHOOK` (URL del webhook de Google Chat Workspace)
+- En fallo: mensaje a Google Chat con enlace al run de Actions + artefacto `playwright-report`
 
 ## Setup rápido
 
 ```bash
+cd mop-e2e
 npm install
 npx playwright install chromium
-npm test          # local
-npm run test:ui   # modo interactivo de Playwright (ideal para depurar selectores)
+npm test                    # las 3 tiendas
+npm test -- --project=thecampamento
+npm run test:ui             # depurar selectores
 ```
 
-CI: push a GitHub y crear el secret `SLACK_WEBHOOK` (Settings → Secrets and
-variables → Actions). Para n8n, sustituir la URL del `curl` en el workflow.
+## Añadir o cambiar una tienda
 
-## Tareas pendientes / ideas (TODO)
+1. Añadir entrada en [`mop-e2e/stores/index.js`](mop-e2e/stores/index.js).
+2. Mapear en producción con `npm run test:ui` (no inventar selectores).
+3. Confirmar URL de checkout con un flujo manual.
+4. Actualizar este CONTEXT.md.
 
-- [ ] Primera ejecución real (`npm test`) para confirmar que los selectores
-      aguantan en producción y ajustar si algún `getByText`/`getByRole` no casa.
-- [ ] Activar el proyecto `webkit` en `playwright.config.js`.
-- [ ] **Parametrizar para multi-tienda**: extraer `BASE_URL` + `PRODUCT_PATH` +
-      selectores a una config por tienda para reusar el mismo repo en
-      emestudios.com y thecampamento.com (ambas Shopify headless del mismo stack).
-- [ ] Confirmar el regex de la URL de checkout de Shopify en producción
-      (`shopify.com` vs ruta `/checkouts/`) y afinar `waitForURL`.
-- [ ] Opcional: health checks ligeros (fetch sin navegador) para disponibilidad
-      rápida, dejando Playwright solo para el flujo de UI completo. Un Cloudflare
-      Worker con cron trigger es buena opción (gratis, sin cold start).
+## Tareas pendientes / ideas
+
+- [ ] Activar WebKit en `playwright.config.js`.
+- [ ] Health check ligero (fetch sin navegador) complementario al E2E.
+- [ ] Incluir nombre de tienda fallida en el mensaje de Google Chat (parsear reporte).
 
 ## Cosas que NO hacer
 
 - No completar el pago ni generar pedidos reales.
-- No añadir el test al repo del cliente ni acoplarlo a su código.
-- No meter credenciales/tokens en el repo ni en URLs. El `SLACK_WEBHOOK` va como
-  secret de GitHub.
+- No acoplar tests al repo del cliente.
+- No meter URLs de webhook en el código (solo secret de GitHub).
