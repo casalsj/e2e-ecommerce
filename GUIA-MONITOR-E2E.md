@@ -252,17 +252,16 @@ Repetir para cada tienda si se quiere validar el espacio completo.
 | **Disparadores** | Cron `*/15 * * * *` (cada 15 min) + ejecución manual |
 | **Qué ejecuta** | `npm test` → las 3 tiendas, 12 tests |
 | **Si todo OK** | Silencio (no envía mensaje a Chat) |
-| **Si falla** | Artefacto `playwright-report` + mensaje 🚨 a Google Chat |
+| **Si falla** | Artefacto `playwright-report` + mensaje 🚨 con **tienda y test** concretos |
 | **Secret necesario** | `GOOGLE_CHAT_WEBHOOK` |
 
-Mensaje de alerta actual:
+Mensaje de alerta (ejemplo):
 
 ```
-🚨 E2E FALLÓ en monitor multi-tienda (themopbookstore / thecampamento / emestudios)
+🚨 E2E FALLÓ
+• emestudios: camino crítico: producto → carrito → inicio de checkout
 Run: https://github.com/.../actions/runs/...
 ```
-
-> **Mejora pendiente:** incluir qué tienda concreta falló en el mensaje (hoy hay que abrir el run de Actions).
 
 ### `Webhook Test` (`webhook-test.yml`) — validación de alertas
 
