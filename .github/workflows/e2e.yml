@@ -35,6 +35,10 @@ jobs:
       - name: Ejecutar tests E2E (3 tiendas)
         run: npm test
 
+      - name: Resumir fallos para alerta
+        if: failure()
+        run: node scripts/format-e2e-alert.js
+
       - name: Subir reporte si falla
         if: failure()
         uses: actions/upload-artifact@v5
@@ -46,7 +50,15 @@ jobs:
       - name: Avisar a Google Chat si falla
         if: failure()
         run: |
+          TEXT=$(node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const details = readFileSync('e2e-failures.txt', 'utf8').trim();
+            const run = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            console.log(JSON.stringify({
+              text: '🚨 *E2E FALLÓ*\\n' + details + '\\nRun: ' + run,
+            }));
+          ")
           curl -sf -X POST \
             -H 'Content-Type: application/json; charset=UTF-8' \
-            --data "{\"text\":\"🚨 *E2E FALLÓ* en monitor multi-tienda (themopbookstore / thecampamento / emestudios)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            --data "$TEXT" \
             "${{ secrets.GOOGLE_CHAT_WEBHOOK }}"

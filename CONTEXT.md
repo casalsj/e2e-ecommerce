@@ -185,7 +185,6 @@ checkout de Shopify — es el mecanismo que usan emestudios y thecampamento en C
 
 - [ ] Activar WebKit en `playwright.config.js`.
 - [ ] Health check ligero (fetch sin navegador) complementario al E2E.
-- [ ] Incluir nombre de tienda fallida en el mensaje de Google Chat (parsear reporte).
 
 ## Cosas que NO hacer
 

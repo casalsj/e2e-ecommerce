@@ -10,7 +10,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   timeout: process.env.CI ? 60_000 : 45_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [['github'], ['list']] : 'list',
+  reporter: process.env.CI
+    ? [['github'], ['list'], ['json', { outputFile: 'test-results/results.json' }]]
+    : 'list',
   use: {
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
