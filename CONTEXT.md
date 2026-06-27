@@ -81,7 +81,7 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 
 - **Home** `/` — título contiene "MOP"; nav con BOOKSTORE.
 - **Catálogo** `/bookstore/bookstore-annie-leibovitz` — enlaces `/products/...`.
-- **Producto** `/products/annie-leibovitz-in-wonderland` — precio `NN.NN EUR`.
+- **Producto** `/products/paolo-roversi-doubts` — Paolo Roversi - Doubts, 69,95 EUR (sin talla).
 - **Cookies** — banner "Aceptar todas las cookies" / "Sólo las esenciales".
 - **Cesta** — botón `Cesta (N)`; cajón con "Subtotal".
 - **Checkout** — enlace **"Continuar con el pago"** (es `<a>`, no `<button>`).
