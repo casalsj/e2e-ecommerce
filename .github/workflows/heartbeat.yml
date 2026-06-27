@@ -1,0 +1,51 @@
+name: Heartbeat
+
+# Señal de vida cada 4 h: healthcheck + mensaje a Google Chat (OK o KO).
+# Detecta silencio si GitHub deja de ejecutar workflows (no avisa solo por fallo de infra).
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: heartbeat-monitor
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: mop-e2e
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Healthcheck + resumen
+        id: pulse
+        continue-on-error: true
+        run: node scripts/heartbeat.js | tee heartbeat-summary.txt
+
+      - name: Heartbeat a Google Chat
+        if: always()
+        run: |
+          BODY=$(cat heartbeat-summary.txt)
+          RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEXT=$(node --input-type=module -e "
+            const body = process.argv[1];
+            const run = process.argv[2];
+            console.log(JSON.stringify({ text: body + '\\nRun: ' + run }));
+          " "$BODY" "$RUN")
+          curl -sf -X POST \
+            -H 'Content-Type: application/json; charset=UTF-8' \
+            --data "$TEXT" \
+            "${{ secrets.GOOGLE_CHAT_WEBHOOK }}"
+
+      - name: Marcar job como fallido si healthcheck KO
+        if: steps.pulse.outcome == 'failure'
+        run: exit 1

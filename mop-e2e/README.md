@@ -3,7 +3,8 @@
 Monitorización de tiendas Shopify headless sin servicio externo.
 
 - **Healthcheck** (cada 5 min): `GET` home + catálogo — sin navegador.
-- **E2E Playwright** (cada 15 min): flujo hasta checkout — avisa por **Google Chat** si falla.
+- **E2E Playwright** (cada 15 min): flujo hasta checkout — alerta Chat solo si falla.
+- **Heartbeat** (cada 4 h): healthcheck + mensaje **OK o KO** a Chat (señal de vida).
 
 ## Tiendas monitorizadas
 

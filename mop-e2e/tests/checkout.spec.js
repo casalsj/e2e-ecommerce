@@ -3,9 +3,10 @@ import { getStore } from '../stores/index.js';
 import {
   dismissCookieBanner,
   dismissNewsletterPopups,
+  prepareProductPage,
+  productAreaLocator,
   getCartCount,
   cartButtonLocator,
-  selectSizeIfNeeded,
   addToCart,
   goToCheckout,
   openCartDrawerIfNeeded,
@@ -46,19 +47,18 @@ test.describe('Flujo de compra crítico', () => {
     const store = getStore(testInfo.project.name);
 
     await page.goto(store.productPath);
-    await dismissCookieBanner(page, store.cookiePattern);
-    await selectSizeIfNeeded(page, store);
+    await prepareProductPage(page, store);
 
-    await expect(page.getByText(store.pricePattern).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: store.addToCartPattern }).first()).toBeVisible();
+    const root = productAreaLocator(page, store);
+    await expect(root.getByText(store.pricePattern).first()).toBeVisible();
+    await expect(root.getByRole('button', { name: store.addToCartPattern })).toBeEnabled();
   });
 
   test('camino crítico: producto → carrito → inicio de checkout', async ({ page }, testInfo) => {
     const store = getStore(testInfo.project.name);
 
     await page.goto(store.productPath);
-    await dismissCookieBanner(page, store.cookiePattern);
-    await selectSizeIfNeeded(page, store);
+    await prepareProductPage(page, store);
 
     const initialCount = store.id === 'themopbookstore' ? await getCartCount(page) : 0;
 

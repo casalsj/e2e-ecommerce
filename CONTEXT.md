@@ -58,10 +58,11 @@ e2e-ecommerce/
 |------|----------|------------|---------------|----------|
 | **Healthcheck** | `healthcheck.yml` | cada 5 min | `GET /` + `GET catalogPath` → HTTP 2xx | ~10–30 s |
 | **E2E profundo** | `e2e.yml` | cada 15 min | 4 tests Playwright hasta checkout | ~2 min |
+| **Heartbeat** | `heartbeat.yml` | cada 4 h | healthcheck + mensaje OK/KO a Chat | ~30 s |
 
-Local: `npm run healthcheck` (sin instalar Playwright).
+Local: `npm run healthcheck` / `npm run heartbeat` (sin Playwright).
 
-El healthcheck da **uptime orientativo** (¿responde la web?). El E2E confirma **¿se puede comprar?**.
+El healthcheck da **uptime orientativo**. El E2E confirma **¿se puede comprar?**. El heartbeat confirma **que el monitor sigue vivo** (GitHub no avisa si el cron deja de ejecutarse).
 
 ## Tests E2E (12 en total)
 
@@ -101,11 +102,11 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 - **Locale** — `/es/es/...`. `locale: es-ES` en Playwright.
 - **Home** `/es/es/` — título "Eme Studios" / "Always Grateful".
 - **Catálogo** `/es/es/best-sellers` — enlaces `/es/es/product/...`.
-- **Producto** `/es/es/product/roots-shadow-oversized-tee` — precio `NN,NN €`.
+- **Producto** `/es/es/product/thrill-navy-zipper-knit` — Thrill Navy Zipper Knit, 95,00 €.
 - **Cookies** — botón "ACEPTAR".
-- **Talla obligatoria** — seleccionar (ej. `M`) antes de "AÑADIR AL CARRITO".
-- **Cesta** — cajón con "Contenido del carrito" y botón **"PAGAR"**.
-- **Popup suscripción** — "NO, NO QUIERO RECIBIR DESCUENTOS" puede tapar el cajón en CI.
+- **Talla obligatoria** — M/L/S/XL (fallback); falla explícito si ninguna disponible.
+- **Popup suscripción** — "10% Off" / CERRAR; se cierra en `prepareProductPage` **antes** de añadir.
+- **Selectores** — acotados al bloque del producto principal (`productAreaLocator`), no recomendados.
 - **Checkout en CI** — `preferApiCheckout: true`: tras verificar el carrito, navega a
   `cart.checkoutUrl` (`/api/shopify/cart/.../checkout`) en lugar de pulsar PAGAR.
   Evita popups y es igual de válido (mismo handoff a `checkout.emestudios.com`).

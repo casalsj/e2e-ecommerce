@@ -25,14 +25,39 @@ export async function getCartCount(page) {
 }
 
 /**
+ * Bloque del producto principal (evita clicar tallas/botones de recomendados).
+ * @param {import('@playwright/test').Page} page
+ * @param {import('../stores/index.js').stores[string]} store
+ */
+export function productAreaLocator(page, store) {
+  if (store.id !== 'emestudios') return page.locator('main').first();
+  return page.locator('section, article, div').filter({
+    has: page.getByRole('heading', { name: store.productName }),
+    has: page.getByRole('button', { name: store.addToCartPattern }),
+  }).first();
+}
+
+/**
+ * Cookies, popups y talla antes de interactuar con la ficha.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('../stores/index.js').stores[string]} store
+ */
+export async function prepareProductPage(page, store) {
+  await dismissCookieBanner(page, store.cookiePattern);
+  await dismissNewsletterPopups(page, store);
+  await selectSizeIfNeeded(page, store);
+}
+
+/**
  * @param {import('@playwright/test').Page} page
  * @param {import('../stores/index.js').stores[string]} store
  */
 export async function selectSizeIfNeeded(page, store) {
   if (!store.size) return;
   const sizes = Array.isArray(store.size) ? store.size : [store.size];
+  const root = productAreaLocator(page, store);
   for (const size of sizes) {
-    const btn = page
+    const btn = root
       .getByRole('button', { name: size, exact: true })
       .and(page.locator(':enabled'))
       .first();
@@ -41,6 +66,7 @@ export async function selectSizeIfNeeded(page, store) {
       return;
     }
   }
+  throw new Error(`No hay talla disponible (${sizes.join(', ')}) en ${store.label}`);
 }
 
 /** Respuesta de la API headless al mutar el carrito (añadir línea). */
@@ -69,7 +95,8 @@ async function checkoutUrlFromCartResponse(response) {
  * @returns {Promise<string|null>} checkoutUrl relativa devuelta por la API del carrito
  */
 export async function addToCart(page, store) {
-  const addButton = page.getByRole('button', { name: store.addToCartPattern }).first();
+  const root = productAreaLocator(page, store);
+  const addButton = root.getByRole('button', { name: store.addToCartPattern });
 
   const linesResponse = page
     .waitForResponse((r) => isCartMutationResponse(r) && r.url().includes('/lines'), {
@@ -101,20 +128,33 @@ export async function gotoCheckoutViaApi(page, store, checkoutPath) {
   await page.waitForURL(store.checkoutUrlPattern, { timeout: 30_000 });
 }
 
-/** Cierra popups de newsletter que tapan el cajón de compra. */
+/** Cierra popups de newsletter que tapan la ficha o el cajón de compra. */
 export async function dismissNewsletterPopups(page, store) {
   if (store.id !== 'emestudios') return;
+
+  const dialog = page.getByRole('dialog').filter({
+    hasText: /10%\s*off|suscri|boletín|members|descuentos/i,
+  });
+
   for (const pattern of [/no,?\s*no quiero recibir descuentos/i, /^cerrar$/i, /^close$/i]) {
     try {
-      await page.getByRole('button', { name: pattern }).click({ timeout: 1_500 });
+      const btn = dialog.getByRole('button', { name: pattern }).or(page.getByRole('button', { name: pattern }));
+      await btn.first().click({ timeout: 3_000 });
     } catch {
-      // Sin popup
+      // Sin popup o ya cerrado
     }
   }
+
   try {
     await page.keyboard.press('Escape');
   } catch {
     // Sin foco
+  }
+
+  try {
+    await dialog.first().waitFor({ state: 'hidden', timeout: 5_000 });
+  } catch {
+    // Popup ya cerrado o no existía
   }
 }
 
