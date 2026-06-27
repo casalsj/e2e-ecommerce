@@ -30,11 +30,18 @@ export async function getCartCount(page) {
  * @param {import('../stores/index.js').stores[string]} store
  */
 export function productAreaLocator(page, store) {
-  if (store.id !== 'emestudios') return page.locator('main').first();
-  return page.locator('section, article, div').filter({
-    has: page.getByRole('heading', { name: store.productName }),
-    has: page.getByRole('button', { name: store.addToCartPattern }),
-  }).first();
+  if (store.id === 'thecampamento') {
+    return page.locator('article').filter({
+      has: page.getByRole('heading', { level: 1, name: store.productName }),
+    }).first();
+  }
+  if (store.id === 'emestudios') {
+    return page.locator('section, article, div').filter({
+      has: page.getByRole('heading', { name: store.productName }),
+      has: page.getByRole('button', { name: store.addToCartPattern }),
+    }).first();
+  }
+  return page.locator('main').first();
 }
 
 /**
@@ -128,15 +135,22 @@ export async function gotoCheckoutViaApi(page, store, checkoutPath) {
   await page.waitForURL(store.checkoutUrlPattern, { timeout: 30_000 });
 }
 
-/** Cierra popups de newsletter que tapan la ficha o el cajón de compra. */
+/** Cierra popups de newsletter/Klaviyo que tapan la ficha o el cajón de compra. */
 export async function dismissNewsletterPopups(page, store) {
-  if (store.id !== 'emestudios') return;
+  if (!['emestudios', 'thecampamento'].includes(store.id)) return;
 
   const dialog = page.getByRole('dialog').filter({
-    hasText: /10%\s*off|suscri|boletín|members|descuentos/i,
+    hasText: /10%\s*off|suscri|boletín|members|descuentos|newsletter|klaviyo/i,
   });
 
-  for (const pattern of [/no,?\s*no quiero recibir descuentos/i, /^cerrar$/i, /^close$/i]) {
+  const patterns = [
+    /no,?\s*no quiero recibir descuentos/i,
+    /no thanks/i,
+    /^cerrar$/i,
+    /^close$/i,
+  ];
+
+  for (const pattern of patterns) {
     try {
       const btn = dialog.getByRole('button', { name: pattern }).or(page.getByRole('button', { name: pattern }));
       await btn.first().click({ timeout: 3_000 });
@@ -208,18 +222,18 @@ export function checkoutLocator(page, store) {
  */
 export async function openCartDrawerIfNeeded(page, store) {
   if (store.id === 'thecampamento') {
-    const checkoutVisible = await page.getByRole('button', { name: /^checkout$/i }).isVisible();
+    const checkoutBtn = page.getByRole('button', { name: /^checkout$|^pagar$/i });
+    const checkoutVisible = await checkoutBtn.isVisible();
     if (!checkoutVisible) {
       const bagBtn = page
         .locator('button')
         .filter({ has: page.locator('img[alt="bag"], img[alt="Bag"]') })
+        .or(page.getByRole('button', { name: /carrito|cart|bag/i }))
         .first();
       if (await bagBtn.count()) {
         await bagBtn.click();
-      } else {
-        await page.getByRole('button', { name: /bag/i }).first().click();
       }
-      await page.getByRole('button', { name: /^checkout$/i }).waitFor({ state: 'visible', timeout: 15_000 });
+      await checkoutBtn.waitFor({ state: 'visible', timeout: 15_000 });
     }
     return;
   }

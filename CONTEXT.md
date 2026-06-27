@@ -88,14 +88,15 @@ Ejecutar solo una tienda: `npm test -- --project=emestudios`
 
 ### thecampamento.com
 
-- **Locale** — `/es/en/...` (inglés en España). `locale: en-GB` en Playwright.
-- **Home** `/es/en` — título contiene "Campamento".
-- **Catálogo** `/es/en/kid` — enlaces `/es/en/product/...`.
-- **Producto** `/es/en/product/falling-star-sweatshirt` — precio `€NN.NN`.
-- **Cookies** — "ACCEPT ALL" / "REJECT OPTIONAL".
-- **Talla obligatoria** — seleccionar talla (ej. `7/8`) antes de "ADD TO CART".
-- **Cesta** — botón `bag N`; cajón con "TOTAL" y botón **"CHECKOUT"** (no enlace).
-- **Popup Klaviyo** — puede cerrar el cajón; el test reabre con el botón `bag`.
+- **Locale** — `/es/es/...`. `locale: es-ES` en Playwright.
+- **Home** `/es/es` — título contiene "Campamento"; nav NIÑO/A, BEBÉ, ABOUT.
+- **Catálogo** `/es/es/kid` — enlaces `/es/es/product/...`.
+- **Producto** `/es/es/product/ladybug-jacket` — Chaqueta Ladybug, 69,30 €.
+- **Cookies** — "ACEPTAR TODAS" / "ACEPTAR".
+- **Talla obligatoria** — fallback `4`, `5/6`, `7/8`; falla explícito si ninguna disponible.
+- **Selectores** — acotados al `article` del `h1` principal (`productAreaLocator`).
+- **Popup Klaviyo** — se cierra en `prepareProductPage` antes de añadir.
+- **Cesta** — cajón con "TOTAL"; checkout vía API (`preferApiCheckout`).
 
 ### emestudios.com
 
