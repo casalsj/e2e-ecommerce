@@ -31,9 +31,11 @@ export async function getCartCount(page) {
  */
 export function productAreaLocator(page, store) {
   if (store.id === 'thecampamento') {
-    return page.locator('article').filter({
-      has: page.getByRole('heading', { level: 1, name: store.productName }),
-    }).first();
+    // Hay varios <article> duplicados (responsive); el stub móvil no tiene selector de talla.
+    return page.locator('article')
+      .filter({ has: page.getByRole('heading', { level: 1, name: store.productName }) })
+      .filter({ has: page.getByText(/^Talla$/i) })
+      .first();
   }
   if (store.id === 'emestudios') {
     return page.locator('section, article, div').filter({
@@ -52,6 +54,11 @@ export function productAreaLocator(page, store) {
 export async function prepareProductPage(page, store) {
   await dismissCookieBanner(page, store.cookiePattern);
   await dismissNewsletterPopups(page, store);
+  if (store.id === 'thecampamento') {
+    await expect(
+      page.getByRole('heading', { level: 1, name: store.productName }).first(),
+    ).toBeVisible({ timeout: 20_000 });
+  }
   await selectSizeIfNeeded(page, store);
 }
 
@@ -59,21 +66,28 @@ export async function prepareProductPage(page, store) {
  * @param {import('@playwright/test').Page} page
  * @param {import('../stores/index.js').stores[string]} store
  */
+function sizeButtonLocator(root, page, size) {
+  return root
+    .getByRole('button', { name: size, exact: true })
+    .filter({ hasNot: page.locator('[disabled], [aria-disabled="true"]') })
+    .first();
+}
+
 export async function selectSizeIfNeeded(page, store) {
   if (!store.size) return;
   const sizes = Array.isArray(store.size) ? store.size : [store.size];
   const root = productAreaLocator(page, store);
-  for (const size of sizes) {
-    const btn = root
-      .getByRole('button', { name: size, exact: true })
-      .and(page.locator(':enabled'))
-      .first();
-    if (await btn.count()) {
-      await btn.click();
-      return;
+
+  await expect(async () => {
+    for (const size of sizes) {
+      const btn = sizeButtonLocator(root, page, size);
+      if (await btn.count()) {
+        await btn.click();
+        return;
+      }
     }
-  }
-  throw new Error(`No hay talla disponible (${sizes.join(', ')}) en ${store.label}`);
+    throw new Error(`No hay talla disponible (${sizes.join(', ')}) en ${store.label}`);
+  }).toPass({ timeout: 20_000 });
 }
 
 /** Respuesta de la API headless al mutar el carrito (añadir línea). */

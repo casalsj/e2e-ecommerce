@@ -33,7 +33,7 @@ export const stores = {
     catalogPath: '/es/es/kid',
     homeTitle: /campamento/i,
     homeNavLink: /niño|bebé|about|kid/i,
-    productName: /chaqueta ladybug/i,
+    productName: /chaqueta ladybug|ladybug jacket/i,
     productLinkSelector: 'a[href*="/product/"]',
     pricePattern: /€\s*\d+[.,]\d{2}|\d+[.,]\d{2}\s*€/i,
     cookiePattern: /aceptar todas|aceptar$/i,
@@ -43,7 +43,7 @@ export const stores = {
     checkoutUrlPattern: /checkout\.thecampamento\.com|shopify\.com|\/checkouts?\//i,
     checkout: { type: 'button', pattern: /^checkout$|^pagar$/i },
     preferApiCheckout: true,
-    size: ['4', '5/6', '7/8'],
+    size: ['5/6', '4', '7/8', '9/10', '3', '2', '11/12', '13/14'],
   },
 
   emestudios: {
