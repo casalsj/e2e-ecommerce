@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const RESULTS_FILE = 'test-results/results.json';
-const OUT_FILE = 'e2e-failures.txt';
+const OUT_FILE = process.env.E2E_ALERT_FILE ?? 'e2e-failures.txt';
 
 /** @param {import('@playwright/test/reporter').JSONReportSuite[] | undefined} suites */
 function collectFailures(suites, failures = []) {

@@ -17,7 +17,11 @@ defaults:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        store: [themopbookstore, thecampamento, emestudios]
     steps:
       - uses: actions/checkout@v5
 
@@ -32,28 +36,57 @@ jobs:
       - name: Instalar navegador
         run: npx playwright install --with-deps chromium
 
-      - name: Ejecutar tests E2E (3 tiendas)
-        run: npm test
+      - name: Ejecutar tests E2E (${{ matrix.store }})
+        run: npm test -- --project=${{ matrix.store }}
 
       - name: Resumir fallos para alerta
         if: failure()
+        env:
+          E2E_ALERT_FILE: e2e-failures-${{ matrix.store }}.txt
         run: node scripts/format-e2e-alert.js
 
-      - name: Subir reporte si falla
+      - name: Subir resumen de fallo
         if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: playwright-report-${{ github.run_id }}
-          path: mop-e2e/playwright-report/
+          name: e2e-failures-${{ matrix.store }}
+          path: mop-e2e/e2e-failures-${{ matrix.store }}.txt
+
+      - name: Subir trazas y capturas si falla
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-${{ matrix.store }}-${{ github.run_id }}
+          path: |
+            mop-e2e/test-results/
+            mop-e2e/playwright-report/
           retention-days: 7
 
-      - name: Avisar a Google Chat si falla
-        if: failure()
+  notify:
+    needs: e2e
+    if: ${{ always() && needs.e2e.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: e2e-failures-*
+          merge-multiple: true
+          path: alert-artifacts
+
+      - name: Avisar a Google Chat
         run: |
+          shopt -s nullglob
+          files=(alert-artifacts/e2e-failures-*.txt)
+          if [ ${#files[@]} -eq 0 ]; then
+            DETAILS='• No se pudo determinar el test fallido (revisa el run)'
+          else
+            DETAILS=$(cat "${files[@]}" | sort -u)
+          fi
+          export DETAILS
+          export RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TEXT=$(node --input-type=module -e "
-            import { readFileSync } from 'node:fs';
-            const details = readFileSync('e2e-failures.txt', 'utf8').trim();
-            const run = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            const details = process.env.DETAILS;
+            const run = process.env.RUN_URL;
             console.log(JSON.stringify({
               text: '🚨 *E2E FALLÓ*\\n' + details + '\\nRun: ' + run,
             }));
